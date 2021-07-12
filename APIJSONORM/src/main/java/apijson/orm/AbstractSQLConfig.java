@@ -589,7 +589,9 @@ public abstract class AbstractSQLConfig implements SQLConfig {
 		String sch = getSQLSchema();
 		String sqlTable = getSQLTable();
 
-		return (StringUtil.isEmpty(sch, true) ? "" : q + sch + q + ".") + q + sqlTable + q + ( isKeyPrefix() ? " AS " + getAliasWithQuote() : "");
+		//兼容Oracle删除表别名AS关键字 by enjoy
+		//return (StringUtil.isEmpty(sch, true) ? "" : q + sch + q + ".") + q + sqlTable + q + ( isKeyPrefix() ? " AS " + getAliasWithQuote() : "");
+		return (StringUtil.isEmpty(sch, true) ? "" : q + sch + q + ".") + q + sqlTable + q + ( isKeyPrefix() ? " " + getAliasWithQuote() : "");
 	}
 	@Override
 	public AbstractSQLConfig setTable(String table) { //Table已经在Parser中校验，所以这里不用防SQL注入
@@ -882,7 +884,9 @@ public abstract class AbstractSQLConfig implements SQLConfig {
 		//			return (hasPrefix ? " ORDER BY " : "") + StringUtil.concat(order, joinOrder, ", ");
 		//		}
 
-		if (getCount() > 0 && (isOracle() || isSQLServer() || isDb2())) { // Oracle, SQL Server, DB2 的 OFFSET 必须加 ORDER BY
+		//oracle order by异常，删除isOracle() by enjoy
+		if (getCount() > 0 && (isSQLServer() || isDb2())) { // Oracle, SQL Server, DB2 的 OFFSET 必须加 ORDER BY
+		//if (getCount() > 0 && (isOracle() || isSQLServer() || isDb2())) { // Oracle, SQL Server, DB2 的 OFFSET 必须加 ORDER BY
 
 			//			String[] ss = StringUtil.split(order);
 			if (StringUtil.isEmpty(order, true)) {  //SQL Server 子查询内必须指定 OFFSET 才能用 ORDER BY
@@ -2663,7 +2667,9 @@ public abstract class AbstractSQLConfig implements SQLConfig {
 			String column = config.getColumnString();
 			if (config.isOracle()) {
 				//When config's database is oracle,Using subquery since Oracle12 below does not support OFFSET FETCH paging syntax.
-				return explain + "SELECT * FROM (SELECT"+ (config.getCache() == JSONRequest.CACHE_RAM ? "SQL_NO_CACHE " : "") + column + " FROM " + getConditionString(column, tablePath, config) + ") " + config.getLimitString();
+				//oracle SELECT缺少空格引起sql非法，by enjoy
+				return explain + "SELECT * FROM (SELECT "+ (config.getCache() == JSONRequest.CACHE_RAM ? "SQL_NO_CACHE " : "") + column + " FROM " + getConditionString(column, tablePath, config) + ") " + config.getLimitString();
+				//return explain + "SELECT * FROM (SELECT"+ (config.getCache() == JSONRequest.CACHE_RAM ? "SQL_NO_CACHE " : "") + column + " FROM " + getConditionString(column, tablePath, config) + ") " + config.getLimitString();
 			}
 			
 			return explain + "SELECT " + (config.getCache() == JSONRequest.CACHE_RAM ? "SQL_NO_CACHE " : "") + column + " FROM " + getConditionString(column, tablePath, config) + config.getLimitString();
@@ -2784,7 +2790,9 @@ public abstract class AbstractSQLConfig implements SQLConfig {
 				case ">": // RIGHT JOIN
 					jc.setMain(true).setKeyPrefix(false);
 					sql = ( "<".equals(type) ? " LEFT" : (">".equals(type) ? " RIGHT" : " CROSS") )
-							+ " JOIN ( " + jc.getSQL(isPrepared()) + " ) AS "
+							//oracle 表别名AS引起非法sql处理，by enjoy
+							//+ " JOIN ( " + jc.getSQL(isPrepared()) + " ) AS "
+							+ " JOIN ( " + jc.getSQL(isPrepared()) + " ) "
 							+ quote + jt + quote + " ON " + quote + jt + quote + "." + quote + j.getKey() + quote + " = "
 							+ quote + tt + quote + "." + quote + j.getTargetKey() + quote;
 					jc.setMain(false).setKeyPrefix(true);
